@@ -19,7 +19,7 @@ package field {
 import _root_.net.liftweb.common.{Box, Empty, Failure, Full}
 import _root_.net.liftweb.http.js.JE.Str
 import _root_.net.liftweb.json.JsonAST.{JNothing, JObject, JValue}
-import _root_.net.liftweb.record.{Field, Record}
+import _root_.net.liftweb.record.{Field, MandatoryTypedField, Record}
 
 import com.mongodb.{BasicDBObject, BasicDBObjectBuilder, DBObject, DBRef}
 import com.mongodb.util.JSON
@@ -31,7 +31,7 @@ import org.bson.types.ObjectId
 //abstract class MongoRefField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
 //abstract class MongoRefField[OwnerType <: MongoRecord[OwnerType], RefType <: MongoMetaRecord[RefType]](rec: OwnerType, ref: RefType)
 class DBRefField[OwnerType <: MongoRecord[OwnerType], RefType <: MongoRecord[RefType]](rec: OwnerType, ref: RefType)
-  extends Field[DBRef, OwnerType] {
+  extends Field[DBRef, OwnerType] with MandatoryTypedField[DBRef] {
 
   /*
   * get the referenced object

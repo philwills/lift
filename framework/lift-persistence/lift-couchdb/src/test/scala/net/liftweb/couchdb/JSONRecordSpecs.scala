@@ -97,7 +97,7 @@ object JSONRecordTestSpecs extends Specification {
       recBox must verify (_.isDefined)
       val Full(rec) = recBox
 
-      rec.favoriteColor.value must_== Full("blue")
+      rec.favoriteColor.value must_== Some("blue")
     }
 
     "not set missing fields" in {
