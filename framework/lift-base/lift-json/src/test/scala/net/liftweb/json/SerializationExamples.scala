@@ -228,8 +228,24 @@ object CustomClassExamples extends Specification {
     }
   }
 
+  class DateSerializer extends Serializer[Date] {
+    private val DateClass = classOf[Date]
+
+    def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), Date] = {
+      case (TypeInfo(DateClass, _), json) => json match {
+        case JObject(List(JField("$dt", JString(s)))) =>
+          format.dateFormat.parse(s).getOrElse(throw new MappingException("Can't parse "+ s + " to Date"))
+        case x => throw new MappingException("Can't convert " + x + " to Date")
+      }
+    }
+
+    def serialize(implicit format: Formats): PartialFunction[Any, JValue] = {
+      case x: Date => JObject(JField("$dt", JString(format.dateFormat.format(x))) :: Nil)
+    }
+  }
+
   implicit val formats = 
-    Serialization.formats(NoTypeHints) + new IntervalSerializer + new PatternSerializer
+    Serialization.formats(NoTypeHints) + new IntervalSerializer + new PatternSerializer + new DateSerializer
 
   val i = new Interval(1, 4)
   val ser = swrite(i)
@@ -242,6 +258,11 @@ object CustomClassExamples extends Specification {
   val pser = swrite(p)
   pser mustEqual """{"$pattern":"^Curly"}"""
   read[Pattern](pser).pattern mustEqual p.pattern
+
+  val d = new Date(0)
+  var dser = swrite(d)
+  dser mustEqual """{"$dt":"1970-01-01T00:00:00.000Z"}"""
+  read[Date](dser) mustEqual d
 }
 
 class Interval(start: Long, end: Long) {
