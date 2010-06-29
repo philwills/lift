@@ -14,7 +14,7 @@
 package net.liftweb {
 package mongodb.record {
 
-import java.util.Calendar
+import java.util.{Calendar, UUID}
 import java.util.regex.Pattern
 
 import scala.collection.jcl.Conversions._
@@ -23,6 +23,7 @@ import net.liftweb.common.{Box, Empty, Full}
 import net.liftweb.json.Formats
 import net.liftweb.json.JsonAST.JObject
 import net.liftweb.mongodb._
+import net.liftweb.mongodb.record.field._
 import net.liftweb.record.{MetaRecord, Record}
 import net.liftweb.record.field._
 
@@ -34,8 +35,6 @@ trait MongoMetaRecord[BaseRecord <: MongoRecord[BaseRecord]]
   extends MetaRecord[BaseRecord] with MongoMeta[BaseRecord] {
 
   self: BaseRecord =>
-
-  //def afterCommit: List[BaseRecord => Unit] = Nil
 
   /**
   * Delete the instance from backing store
@@ -71,6 +70,11 @@ trait MongoMetaRecord[BaseRecord <: MongoRecord[BaseRecord]]
   * Find a single row by an ObjectId
   */
   def find(oid: ObjectId): Box[BaseRecord] = find(new BasicDBObject("_id", oid))
+  
+  /**
+  * Find a single row by a UUID
+  */
+  def find(uid: UUID): Box[BaseRecord] = find(new BasicDBObject("_id", uid))
 
   /**
   * Find a single row by Any
@@ -82,10 +86,7 @@ trait MongoMetaRecord[BaseRecord <: MongoRecord[BaseRecord]]
   /**
   * Find a single row by a String id
   */
-  def find(s: String): Box[BaseRecord] = ObjectId.isValid(s) match {
-    case true => find(new BasicDBObject("_id", new ObjectId(s)))
-    case false => find(new BasicDBObject("_id", s))
-  }
+  def find(s: String): Box[BaseRecord] = find(new BasicDBObject("_id", s))
 
   /**
   * Find a single row by an Int id
@@ -253,8 +254,8 @@ trait MongoMetaRecord[BaseRecord <: MongoRecord[BaseRecord]]
           dbo.add(f.name, field.asInstanceOf[MongoFieldFlavor[Any]].asDBObject)
         case Full(field) => field.value.asInstanceOf[AnyRef] match {
           case x if primitive_?(x.getClass) => dbo.add(f.name, x)
+          case x if mongotype_?(x.getClass) => dbo.add(f.name, x)
           case x if datetype_?(x.getClass) => dbo.add(f.name, datetype2dbovalue(x))
-          case x if mongotype_?(x.getClass) => dbo.add(f.name, mongotype2dbovalue(x, formats))
           case o => dbo.add(f.name, o.toString)
         }
         case _ => //dbo.markAsPartialObject // so we know it's only partial
@@ -264,7 +265,7 @@ trait MongoMetaRecord[BaseRecord <: MongoRecord[BaseRecord]]
   }
 
   /**
-  * Creates a new record from a then sets the fields with the given DBObject.
+  * Creates a new record, then sets the fields with the given DBObject.
   *
   * @param dbo - the DBObject
   * @return Box[BaseRecord]

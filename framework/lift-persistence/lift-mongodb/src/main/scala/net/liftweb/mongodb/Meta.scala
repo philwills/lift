@@ -21,7 +21,7 @@ private[mongodb] object Meta {
   */
   object Reflection {
     import java.lang.reflect._
-    import java.util.{Calendar, Date, GregorianCalendar}
+    import java.util.{Calendar, Date, GregorianCalendar, UUID}
     import java.util.regex.Pattern
 
     import net.liftweb.json.Formats
@@ -52,7 +52,6 @@ private[mongodb] object Meta {
       case x: Float => JDouble(x)
       case x: Byte => JInt(BigInt(x))
       case x: BigInt => JInt(x)
-      //case x: BigDecimal => JString(x.toString) // this keeps the scale intact
       case x: Boolean => JBool(x)
       case x: Short => JInt(BigInt(x))
       case x: String => JString(x)
@@ -70,14 +69,17 @@ private[mongodb] object Meta {
     * Date types require formatting
     */
     val datetypes = Set[Class[_]](classOf[Calendar], classOf[Date], classOf[GregorianCalendar])
-    
+
     def datetype_?(clazz: Class[_]) = datetypes contains clazz
-    
+
     def datetype2jvalue(a: Any)(implicit formats: Formats) = a match {
-      case x: Calendar => JString(formats.dateFormat.format(x.getTime))
-      case x: Date => JString(formats.dateFormat.format(x))
+      case x: Calendar => dateAsJValue(x.getTime)
+      case x: Date => dateAsJValue(x)
     }
-    
+
+    def dateAsJValue(d: Date)(implicit formats: Formats) =
+      JObject(JField("$dt", JString(formats.dateFormat.format(d))) :: Nil)
+
     def datetype2dbovalue(a: Any) = a match {
       case x: Calendar => x.getTime
       case x: Date => x
@@ -87,32 +89,28 @@ private[mongodb] object Meta {
     * Extended Mongo types.
     */
     val mongotypes = Set[Class[_]](
-      classOf[DBRef], classOf[MongoRef], classOf[JObject],
-      classOf[ObjectId], classOf[Pattern])
+      classOf[DBRef], classOf[ObjectId], classOf[Pattern], classOf[UUID])
 
     def mongotype_?(clazz: Class[_]) = mongotypes contains clazz
 
-    def mongotype2dbovalue(a: Any, formats: Formats) = a match {
-      case MongoRef(r, i) => new BasicDBObject("ref", r).append("id", i)
-      case dbref: DBRef => dbref
-      case jo: JObject => JObjectParser.parse(jo)(formats) // Any JObject. @Deprecated
-      case oid: ObjectId => oid
-      case p: Pattern => p
+    /*
+    * Definitive place for JValue conversion of mongo types
+    */
+    def mongotype2jvalue(a: Any) = a match {
+      case x: ObjectId => objectIdAsJValue(x)
+      case x: Pattern => patternAsJValue(x)
+      case x: UUID => uuidAsJValue(x)
+      case x: DBRef => error("DBRefs are not supported.")
       case _ => error("not a mongotype " + a.asInstanceOf[AnyRef].getClass)
     }
-/*
-    def dbovalue2mongotype(a: Any) = a match {
-      case c: Calendar => c //c.getTime
-      case DBRef(r, i) => new BasicDBObject("ref", r).append("id", i)
-      case jo: JObject => JObjectParser.parse(jo) // Any JObject
-      case jo: JsonObject[Any] => JObjectParser.parse(jo.asJObject) // A case class that extends JsonObject
-      case oid: ObjectId => oid
-      case p: Pattern => p
-      case _ => error("not a mongotype " + a.asInstanceOf[AnyRef].getClass)
-    }
-*/
+
+    def objectIdAsJValue(oid: ObjectId): JValue = JObject(JField("$oid", JString(oid.toString)) :: Nil)
+    def patternAsJValue(p: Pattern): JValue = JObject(JField("$regex", JString(p.pattern)) :: JField("$flags", JInt(p.flags)) :: Nil)
+    def uuidAsJValue(u: UUID): JValue = JObject(JField("$uuid", JString(u.toString)) :: Nil)
   }
 }
+
+//abstract sealed class 
 
 }
 }

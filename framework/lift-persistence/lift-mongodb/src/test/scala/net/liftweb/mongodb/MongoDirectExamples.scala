@@ -14,7 +14,7 @@
 package net.liftweb {
 package mongodb {
 
-import java.util.Date
+import java.util.{Date, UUID}
 import java.util.regex.Pattern
 
 import org.specs.Specification
@@ -31,11 +31,11 @@ class MongoDirectExamplesTest extends JUnit4(MongoDirectExamples)
 
 object MongoDirectExamples extends Specification {
 
-  doBeforeSpec { 
+  doBeforeSpec {
     // define the db
     MongoDB.defineDb(DefaultMongoIdentifier, MongoAddress(MongoHost(), "test_direct"))
   }
-  
+
   def isMongoRunning: Boolean = {
     try {
       MongoDB.use(DefaultMongoIdentifier) ( db => { db.getLastError } )
@@ -48,7 +48,7 @@ object MongoDirectExamples extends Specification {
 
   def checkMongoIsRunning = isMongoRunning must beEqualTo(true).orSkipExample
 
-  import com.mongodb.util.JSON // Mongo parser/serializer
+  //import com.mongodb.util.JSON // Mongo parser/serializer
 
   val debug = false
 
@@ -276,14 +276,14 @@ object MongoDirectExamples extends Specification {
       coll.update(new BasicDBObject("name", "None"), o2, false, false)
       db.getLastError.get("updatedExisting") must_== false
       db.getLastError.get("n") must_== 0
-      
+
       // regex query example
       val key = "name"
       val regex = "^Mongo"
       val cur = coll.find(
           BasicDBObjectBuilder.start.add(key, Pattern.compile(regex)).get)
       cur.count must_== 2
-      
+
       // use regex and another dbobject
       val cur2 = coll.find(
           BasicDBObjectBuilder.start.add(key, Pattern.compile(regex)).add("count", 1).get)
@@ -297,6 +297,23 @@ object MongoDirectExamples extends Specification {
         coll.drop
       }
     })
+  }
+
+  "UUID Example" in {
+
+    checkMongoIsRunning
+
+    MongoDB.useCollection("examples.uuid") { coll =>
+      val uuid = UUID.randomUUID
+      val dbo = new BasicDBObject("_id", uuid).append("name", "dbo")
+      coll.save(dbo)
+
+      val qry = new BasicDBObject("_id", uuid)
+      val dbo2 = coll.findOne(qry)
+
+      dbo2.get("_id") must_== dbo.get("_id")
+      dbo2.get("name") must_== dbo.get("name")
+    }
   }
 
   doAfterSpec {

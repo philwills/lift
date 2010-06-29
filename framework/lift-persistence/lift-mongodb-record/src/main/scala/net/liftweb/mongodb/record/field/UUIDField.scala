@@ -16,33 +16,31 @@ package mongodb {
 package record {
 package field {
 
+import java.util.UUID
+
 import scala.xml.NodeSeq
 
-import _root_.net.liftweb.common.{Box, Empty, Failure, Full}
-import _root_.net.liftweb.http.js.JE.{JsNull, JsRaw}
-import _root_.net.liftweb.http.S
-import _root_.net.liftweb.json.JsonAST._
-import _root_.net.liftweb.json.Printer
-import _root_.net.liftweb.record.{Field, FieldHelpers, Record}
-import _root_.net.liftweb.util.Helpers._
+import net.liftweb.common.{Box, Empty, Failure, Full}
+import net.liftweb.http.js.JE.{JsNull, JsRaw}
+import net.liftweb.http.S
+import net.liftweb.json.JsonAST._
+import net.liftweb.json.Printer
+import net.liftweb.mongodb.record._
+import net.liftweb.record.{Field, FieldHelpers}
+import net.liftweb.util.Helpers._
 
-import org.bson.types.ObjectId
+class UUIDField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
+  extends Field[UUID, OwnerType] {
 
-/*
-* Field for storing an ObjectId
-*/
-class ObjectIdField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
-  extends Field[ObjectId, OwnerType] {
-  
   def owner = rec
 
-  def defaultValue = ObjectId.get
+  def defaultValue = UUID.randomUUID
 
-  def setFromAny(in: Any): Box[ObjectId] = in match {
-    case oid: ObjectId => setBox(Full(oid))
-    case Some(oid: ObjectId) => setBox(Full(oid))
-    case Full(oid: ObjectId) => setBox(Full(oid))
-    case (oid: ObjectId) :: _ => setBox(Full(oid))
+  def setFromAny(in: Any): Box[UUID] = in match {
+    case uid: UUID => setBox(Full(uid))
+    case Some(uid: UUID) => setBox(Full(uid))
+    case Full(uid: UUID) => setBox(Full(uid))
+    case (uid: UUID) :: _ => setBox(Full(uid))
     case s: String => setFromString(s)
     case Some(s: String) => setFromString(s)
     case Full(s: String) => setFromString(s)
@@ -51,23 +49,23 @@ class ObjectIdField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
     case o => setFromString(o.toString)
   }
 
-  def setFromJValue(jvalue: JValue): Box[ObjectId] = jvalue match {
+  def setFromJValue(jvalue: JValue): Box[UUID] = jvalue match {
     case JNothing|JNull if optional_? => setBox(Empty)
-    case JObject(JField("$oid", JString(s)) :: Nil) => setFromString(s)
+    case JObject(JField("$uuid", JString(s)) :: Nil) => setFromString(s)
     case other => setBox(FieldHelpers.expectedA("JObject", other))
   }
 
-  def setFromString(in: String): Box[ObjectId] =
-    if (ObjectId.isValid(in))
-      setBox(Full(new ObjectId(in)))
-    else
-      setBox(Failure("Invalid ObjectId string: "+in))
+  def setFromString(in: String): Box[UUID] = tryo(UUID.fromString(in)) match {
+    case Full(uid: UUID) => setBox(Full(uid))
+    case f: Failure => setBox(f)
+    case other => setBox(Failure("Invalid UUID string: "+in))
+  }
 
   private def elem =
     S.fmapFunc(S.SFuncHolder(this.setFromAny(_))){funcName =>
       <input type="text"
         name={funcName}
-        value={valueBox.map(s => s.toString) openOr ""}
+        value={valueBox.map(v => v.toString) openOr ""}
         tabindex={tabIndex toString}/>
     }
 
@@ -92,7 +90,8 @@ class ObjectIdField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
     case jv => JsRaw(Printer.compact(render(jv)))
   }
 
-  def asJValue: JValue = valueBox.map(v => Meta.Reflection.objectIdAsJValue(v)) openOr (JNothing: JValue)
+  def asJValue: JValue = valueBox.map(v => Meta.Reflection.uuidAsJValue(v)) openOr (JNothing: JValue)
+
 }
 
 }

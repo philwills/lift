@@ -14,7 +14,10 @@
 package net.liftweb {
 package mongodb.record.field {
 
-import net.liftweb.common.Box
+import net.liftweb.common.{Box, Empty, Failure, Full}
+import net.liftweb.http.js.JE.{JsNull, Str}
+import net.liftweb.json.Printer
+import net.liftweb.json.JsonAST._
 
 import com.mongodb.DBObject
 
@@ -30,6 +33,17 @@ trait MongoFieldFlavor[MyType] {
 
   // set this field's value using a DBObject returned from Mongo.
   def setFromDBObject(obj: DBObject): Box[MyType]
+
+  /**
+  * Returns the field's value as a valid JavaScript expression
+  */
+  def asJs = asJValue match {
+    case JNothing => JsNull
+    case jv => Str(Printer.compact(render(jv)))
+  }
+
+  /** Encode the field value into a JValue */
+  def asJValue: JValue
 
 }
 
