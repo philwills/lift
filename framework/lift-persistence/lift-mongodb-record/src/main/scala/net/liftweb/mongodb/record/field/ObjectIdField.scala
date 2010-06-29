@@ -19,11 +19,15 @@ package mongodb {
 package record {
 package field {
 
+import scala.xml.NodeSeq
+
 import _root_.net.liftweb.common.{Box, Empty, Failure, Full}
-import _root_.net.liftweb.http.js.JE.{JsNull, Str}
-import _root_.net.liftweb.json.JsonAST.{JNothing, JNull, JString, JValue}
-import _root_.net.liftweb.record.{Field, Record}
-import _root_.net.liftweb.record.FieldHelpers
+import _root_.net.liftweb.http.js.JE.{JsNull, JsRaw}
+import _root_.net.liftweb.http.S
+import _root_.net.liftweb.json.JsonAST._
+import _root_.net.liftweb.json.Printer
+import _root_.net.liftweb.record.{Field, FieldHelpers, Record}
+import _root_.net.liftweb.util.Helpers._
 
 import org.bson.types.ObjectId
 
@@ -33,42 +37,66 @@ import org.bson.types.ObjectId
 class ObjectIdField[OwnerType <: MongoRecord[OwnerType]](rec: OwnerType)
   extends Field[ObjectId, OwnerType] {
 
-  def asJs = valueBox.map(v => Str(v.toString)) openOr JsNull
-
-  def asJValue: JValue = valueBox.map(v => JString(v.toString)) openOr (JNothing: JValue)
-
-  def setFromJValue(jvalue: JValue): Box[ObjectId] = jvalue match {
-    case JNothing|JNull if optional_? => setBox(Empty)
-    case JString(s) => setFromString(s)
-    case other => setBox(FieldHelpers.expectedA("JString", other))
-  }
-
-  def asXHtml = <div></div>
+  def owner = rec
 
   def defaultValue = ObjectId.get
 
   def setFromAny(in: Any): Box[ObjectId] = in match {
-    case oid: ObjectId => Full(set(oid))
-    case Some(oid: ObjectId) => Full(set(oid))
-    case Full(oid: ObjectId) => Full(set(oid))
-    case seq: Seq[_] if !seq.isEmpty => seq.map(setFromAny).apply(0)
-    case (s: String) :: _ => setFromString(s)
-    case null => Full(set(null))
+    case oid: ObjectId => setBox(Full(oid))
+    case Some(oid: ObjectId) => setBox(Full(oid))
+    case Full(oid: ObjectId) => setBox(Full(oid))
+    case (oid: ObjectId) :: _ => setBox(Full(oid))
     case s: String => setFromString(s)
-    case None | Empty | Failure(_, _, _) => Full(set(null))
+    case Some(s: String) => setFromString(s)
+    case Full(s: String) => setFromString(s)
+    case null|None|Empty => setBox(defaultValueBox)
+    case f: Failure => setBox(f)
     case o => setFromString(o.toString)
   }
 
-  def setFromString(in: String): Box[ObjectId] = {
-    ObjectId.isValid(in) match {
-      case true => Full(set(new ObjectId(in)))
-      case false => Empty
+
+  def setFromJValue(jvalue: JValue): Box[ObjectId] = jvalue match {
+    case JNothing|JNull if optional_? => setBox(Empty)
+    case JObject(JField("$oid", JString(s)) :: Nil) => setFromString(s)
+    case other => setBox(FieldHelpers.expectedA("JObject", other))
+  }
+
+  def setFromString(in: String): Box[ObjectId] =
+    if (ObjectId.isValid(in))
+      setBox(Full(new ObjectId(in)))
+    else
+      setBox(Failure("Invalid ObjectId string: "+in))
+
+  private def elem =
+    S.fmapFunc(S.SFuncHolder(this.setFromAny(_))){funcName =>
+      <input type="text"
+        name={funcName}
+        value={valueBox.map(s => s.toString) openOr ""}
+        tabindex={tabIndex toString}/>
+    }
+
+  def toForm = {
+    uniqueFieldId match {
+      case Full(id) =>
+        <div id={id+"_holder"}><div><label for={id+"_field"}>{displayName}</label></div>{elem % ("id" -> (id+"_field"))}<lift:msg id={id}/></div>
+      case _ => <div>{elem}</div>
     }
   }
 
-  def toForm = <div></div>
+  def asXHtml: NodeSeq = {
+    var el = elem
+    uniqueFieldId match {
+      case Full(id) =>  el % ("id" -> (id+"_field"))
+      case _ => el
+    }
+  }
 
-  def owner = rec
+  def asJs = asJValue match {
+    case JNothing => JsNull
+    case jv => JsRaw(Printer.compact(render(jv)))
+  }
+
+  def asJValue: JValue = valueBox.map(v => Meta.Reflection.objectIdAsJValue(v)) openOr (JNothing: JValue)
 }
 
 }
