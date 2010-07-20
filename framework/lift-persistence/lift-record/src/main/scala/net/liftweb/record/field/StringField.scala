@@ -30,7 +30,7 @@ import Helpers._
 import JE._
 
 trait StringTypedField extends TypedField[String] with StringValidators {
-  protected val maxLength: Int
+  val maxLength: Int
 
   def maxLen = maxLength
   
@@ -88,7 +88,7 @@ trait StringTypedField extends TypedField[String] with StringValidators {
   }
 }
 
-class StringField[OwnerType <: Record[OwnerType]](rec: OwnerType, protected val maxLength: Int)
+class StringField[OwnerType <: Record[OwnerType]](rec: OwnerType, val maxLength: Int)
   extends Field[String, OwnerType] with MandatoryTypedField[String] with StringTypedField {
 
   def this(rec: OwnerType, maxLength: Int, value: String) = {
@@ -104,7 +104,7 @@ class StringField[OwnerType <: Record[OwnerType]](rec: OwnerType, protected val 
   def owner = rec
 }
 
-class OptionalStringField[OwnerType <: Record[OwnerType]](rec: OwnerType, protected val maxLength: Int)
+class OptionalStringField[OwnerType <: Record[OwnerType]](rec: OwnerType, val maxLength: Int)
   extends Field[String, OwnerType] with OptionalTypedField[String] with StringTypedField {
 
   def this(rec: OwnerType, maxLength: Int, value: Box[String]) = {

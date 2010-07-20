@@ -72,6 +72,11 @@ class RecordMetaDataFactory extends FieldMetaDataFactory {
       case _ => error("unsupported field type : " + metaField)
     }
 
+    val overrideColLength = metaField match {
+      case (stringTypedField: StringTypedField) => Some(stringTypedField.maxLength)
+      case _ => None
+    }
+
     new FieldMetaData(
       parentMetaData,
       name,
@@ -84,6 +89,8 @@ class RecordMetaDataFactory extends FieldMetaDataFactory {
       field,
       colAnnotation,
       isOptimisticCounter) {
+
+      override def length = overrideColLength getOrElse super.length
 
       private def fieldFor(o: AnyRef) = getter.get.invoke(o).asInstanceOf[TypedField[AnyRef]]
 
