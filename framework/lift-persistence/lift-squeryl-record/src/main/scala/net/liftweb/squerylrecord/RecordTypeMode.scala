@@ -16,6 +16,7 @@ package squerylrecord {
 
 import _root_.net.liftweb.record.{OptionalTypedField, TypedField}
 import _root_.org.squeryl.PrimitiveTypeMode
+import _root_.org.squeryl.dsl.{BooleanExpression, NumericalExpression, StringExpression}
 import _root_.org.squeryl.dsl.ast.SelectElementReference
 import _root_.org.squeryl.internals.FieldReferenceLinker
 
