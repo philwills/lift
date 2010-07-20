@@ -16,7 +16,7 @@ package squerylrecord {
 
 import _root_.java.lang.reflect.{Method, Field}
 import _root_.java.lang.annotation.Annotation
-import _root_.java.sql.ResultSet
+import _root_.java.sql.{ResultSet, Timestamp}
 import _root_.java.util.{Calendar, Date}
 import _root_.net.liftweb.common.{Box, Full}
 import _root_.net.liftweb.record.{BaseField, MetaRecord, Record, TypedField}
@@ -64,7 +64,7 @@ class RecordMetaDataFactory extends FieldMetaDataFactory {
 
     val fieldsValueType = metaField match {
       case (_: BooleanTypedField)  => classOf[Boolean]
-      case (_: DateTimeTypedField) => classOf[Date]
+      case (_: DateTimeTypedField) => classOf[Timestamp]
       case (_: DoubleTypedField)   => classOf[Double]
       case (_: IntTypedField)      => classOf[Int]
       case (_: LongTypedField)     => classOf[Long]
@@ -91,7 +91,7 @@ class RecordMetaDataFactory extends FieldMetaDataFactory {
         fieldFor(target).setFromAny(Box!!resultSetHandler(rs, index))
 
       override def get(o: AnyRef) = fieldFor(o).valueBox match {
-        case Full(c: Calendar) => c.getTime
+        case Full(c: Calendar) => new Timestamp(c.getTime.getTime)
         case Full(other) => other
         case _ => null
       }
